@@ -15,8 +15,10 @@ CLASSES = ("regular", "irregular")
 
 
 class RhythmModel:
-    def __init__(self) -> None:
-        self.pipe = make_pipeline(StandardScaler(), LogisticRegression(C=1.0, max_iter=1000))
+    def __init__(self, class_weight: str | None = None) -> None:
+        self.pipe = make_pipeline(
+            StandardScaler(), LogisticRegression(C=1.0, max_iter=1000, class_weight=class_weight)
+        )
 
     def fit(self, features: np.ndarray, y: np.ndarray) -> "RhythmModel":
         self.pipe.fit(features, y)
