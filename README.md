@@ -3,7 +3,7 @@
 [![CI](https://github.com/Madmaxcoder2612/safebeat/actions/workflows/ci.yml/badge.svg)](https://github.com/Madmaxcoder2612/safebeat/actions/workflows/ci.yml)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Status: learning project](https://img.shields.io/badge/status-learning%20project-orange)
+![Status: hackathon project](https://img.shields.io/badge/status-hackathon%20project-orange)
 
 Wearable ECG models usually give a confident answer even when the signal is junk: a loose electrode, a dropout, movement. SafeBeat adds two safety layers in front of a simple rhythm classifier, a **signal-quality gate** and an **"I'm not sure" rule**, and tests them the way safety engineers test: by **injecting faults** and counting the wrong answers.
 
