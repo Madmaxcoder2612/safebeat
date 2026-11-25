@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The browser enforces this: no network connections, no outside scripts, fonts or images. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>SafeBeat Lab</title>
+  <meta name="description" content="Break the sensor: see an ECG rhythm screener refuse to answer when the signal is damaged. Synthetic teaching demo, not a medical device.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="wrap">
+    <h1>SafeBeat <span>Break the Sensor Lab</span></h1>
+    <p class="lede">A heart-rhythm screener that knows when not to trust itself. Damage the signal and watch a naive model keep answering, while SafeBeat holds back.</p>
+    <p class="notice" role="note"><strong>Teaching demo, not a medical device.</strong> All signals are synthetic. Nothing here can diagnose anything. This page runs entirely in your browser: it makes no network requests, sets no cookies and collects no data.</p>
+  </header>
+
+  <noscript><p class="wrap notice">This lab needs JavaScript to draw the signal. It does not load anything from the internet.</p></noscript>
+
+  <main class="wrap" id="app" hidden>
+    <section aria-labelledby="controls-h" class="panel">
+      <h2 id="controls-h">1. Pick a person and break their sensor</h2>
+      <div class="controls">
+        <label>Person
+          <select id="person"></select>
+        </label>
+        <label>Damage type
+          <select id="fault"></select>
+        </label>
+        <label>Damage strength: <output id="sev-out">0.0</output>
+          <input id="sev" type="range" min="0" max="10" step="1" value="0">
+        </label>
+        <label>Gate strictness: <output id="strict-out"></output>
+          <input id="strict" type="range" min="0" max="4" step="1" value="0">
+        </label>
+      </div>
+      <p class="hint" id="truth"></p>
+    </section>
+
+    <section aria-labelledby="signal-h" class="panel">
+      <h2 id="signal-h">2. The signal the sensor delivers</h2>
+      <svg id="wave" viewBox="0 0 1000 220" role="img" aria-labelledby="wave-title">
+        <title id="wave-title">ECG signal over ten seconds</title>
+        <defs><clipPath id="clip"><rect x="0" y="0" width="1000" height="220"></rect></clipPath></defs>
+        <g id="grid"></g>
+        <polyline id="trace" clip-path="url(#clip)" fill="none"></polyline>
+      </svg>
+      <p class="axis">10 seconds · synthetic signal · y-axis in normalised units</p>
+    </section>
+
+    <section aria-labelledby="verdict-h" class="panel">
+      <h2 id="verdict-h">3. What each system says</h2>
+      <div class="cards" aria-live="polite">
+        <article class="card" id="naive-card">
+          <h3>Naive model</h3>
+          <p class="verdict" id="naive-verdict"></p>
+          <p class="chip" id="naive-chip"></p>
+          <p class="detail" id="naive-detail"></p>
+        </article>
+        <article class="card" id="safe-card">
+          <h3>SafeBeat</h3>
+          <p class="verdict" id="safe-verdict"></p>
+          <p class="chip" id="safe-chip"></p>
+          <p class="detail" id="safe-detail"></p>
+        </article>
+      </div>
+      <p class="story" id="story"></p>
+    </section>
+
+    <section aria-labelledby="score-h" class="panel">
+      <h2 id="score-h">4. Not just one example</h2>
+      <p id="score-intro"></p>
+      <div id="bars" class="bars"></div>
+      <p class="hint">Measured on 1,200 synthetic windows from 30 simulated people the model never saw in training, at the default (strictest) gate setting.</p>
+    </section>
+
+    <section aria-labelledby="trade-h" class="panel">
+      <h2 id="trade-h">5. The price of safety</h2>
+      <p>A strict gate refuses more often. A loose gate answers more often, and gets more answers wrong. Each dot is one gate strictness level, from strictest (left) to loosest (right).</p>
+      <svg id="trade" viewBox="0 0 520 320" role="img" aria-labelledby="trade-title">
+        <title id="trade-title">Share of windows answered against share answered wrong, for five gate strictness levels</title>
+      </svg>
+      <ul id="trade-legend" class="legend"></ul>
+    </section>
+
+    <section aria-labelledby="how-h" class="panel">
+      <h2 id="how-h">How it works</h2>
+      <ol>
+        <li><strong>Find the beats.</strong> A simple detector finds heartbeats and measures the timing between them.</li>
+        <li><strong>Naive model.</strong> A small classifier says "regular" or "irregular" from that timing. It always answers.</li>
+        <li><strong>Signal-quality gate.</strong> Before answering, SafeBeat checks for a flat line, fast noise, uneven beat heights, beats that do not look alike, and an implausible beat count. The limits are learned from clean signals only.</li>
+        <li><strong>"I'm not sure" rule.</strong> Even on a good signal, SafeBeat says "can't tell" when the rhythm is too close to call (split conformal prediction, 90% target on clean data).</li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="limits-h" class="panel limits">
+      <h2 id="limits-h">Limits: please read</h2>
+      <ul>
+        <li>Every signal here is <strong>synthetic</strong>, generated by code written for this project. Real ECG is messier. Results on real recordings may be worse.</li>
+        <li>Damage strengths are chosen for teaching, not measured on real devices.</li>
+        <li>The 90% confidence promise holds only for clean signals like the calibration data. Damaged signals break that, which is why the gate comes first.</li>
+        <li>The gate assumes calibrated amplitude. A real device would need its own limits.</li>
+        <li>Baseline drift and clipping only trigger warnings here because they do not move beat timing for this simple detector. A different detector could need a different rule.</li>
+        <li>Two rhythm classes only, one lead, ten-second windows. This is not clinically validated and must not be used to make health decisions.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p>Code: MIT licence, copyright Abhishek Vijay Potekar. Built with Python, NumPy, SciPy, scikit-learn and matplotlib (permissive open-source licences, listed in the repository). No third-party fonts, scripts, images or trackers are used. No real patient data is used.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="lab.js"></script>
+</body>
+</html>

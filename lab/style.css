@@ -1,0 +1,93 @@
+/* SafeBeat Lab: plain CSS, system fonts only, no external resources. */
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --text: #1c2230;
+  --muted: #5a6478;
+  --line: #d9dee8;
+  --accent: #5b3fd1;
+  --good: #1d7a4a;
+  --good-bg: #e3f4ea;
+  --bad: #b3261e;
+  --bad-bg: #fbe6e4;
+  --hold: #8a5a00;
+  --hold-bg: #fff1d6;
+  --trace: #2a3550;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12141b;
+    --panel: #1b1f2a;
+    --text: #e8ebf3;
+    --muted: #9aa3b8;
+    --line: #2d3345;
+    --accent: #a995ff;
+    --good: #6fd39b;
+    --good-bg: #173325;
+    --bad: #ff8f86;
+    --bad-bg: #3a1c1a;
+    --hold: #ffcb6b;
+    --hold-bg: #3a2e12;
+    --trace: #cfd8f2;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.55;
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+header.wrap { padding-top: 28px; }
+h1 { margin: 0 0 4px; font-size: 1.9rem; }
+h1 span { display: block; font-size: 1.05rem; font-weight: 500; color: var(--accent); }
+h2 { font-size: 1.2rem; margin: 0 0 12px; }
+h3 { margin: 0 0 6px; font-size: 1rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.lede { font-size: 1.08rem; color: var(--muted); margin-top: 4px; }
+.notice { background: var(--hold-bg); color: var(--text); border-left: 4px solid var(--hold); padding: 10px 14px; border-radius: 6px; font-size: 0.95rem; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 18px 14px; margin: 16px 0; }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px 18px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 0.95rem; }
+select, input[type="range"] { width: 100%; font: inherit; }
+select { padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+input[type="range"] { accent-color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.hint, .axis { color: var(--muted); font-size: 0.9rem; margin: 10px 0 0; }
+.axis { text-align: right; margin-top: 4px; }
+svg { width: 100%; height: auto; display: block; }
+#wave { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+#trace { stroke: var(--trace); stroke-width: 1.6; stroke-linejoin: round; }
+#grid line { stroke: var(--line); stroke-width: 1; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--bg); }
+.card.good { border-color: var(--good); }
+.card.bad { border-color: var(--bad); }
+.card.hold { border-color: var(--hold); }
+.verdict { font-size: 1.5rem; font-weight: 700; margin: 4px 0 8px; }
+.chip { display: inline-block; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: 0.85rem; }
+.chip.good { background: var(--good-bg); color: var(--good); }
+.chip.bad { background: var(--bad-bg); color: var(--bad); }
+.chip.hold { background: var(--hold-bg); color: var(--hold); }
+.detail { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.story { font-weight: 600; margin: 14px 0 4px; }
+.bars { display: grid; gap: 10px; margin: 12px 0; }
+.bar-row { display: grid; grid-template-columns: 170px 1fr 56px; align-items: center; gap: 10px; font-size: 0.95rem; }
+.bar-track { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; height: 18px; overflow: hidden; }
+.bar-fill { height: 100%; }
+.bar-fill.bad { background: var(--bad); }
+.bar-fill.good { background: var(--good); }
+.bar-fill.neutral { background: var(--muted); }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0; margin: 8px 0 0; font-size: 0.9rem; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.limits { border-color: var(--hold); }
+.limits ul, ol { padding-left: 1.2rem; margin: 0 0 8px; }
+.limits li, ol li { margin: 6px 0; }
+footer.wrap { padding-bottom: 36px; color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 520px) {
+  .bar-row { grid-template-columns: 1fr 52px; }
+  .bar-row span:first-child { grid-column: 1 / -1; }
+  h1 { font-size: 1.55rem; }
+}
