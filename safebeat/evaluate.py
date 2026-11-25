@@ -107,9 +107,10 @@ def save(fault_rows, margin_rows, out_dir: Path = RESULTS) -> None:
         ax.grid(alpha=0.3)
     axes[0, 0].set_ylabel("share of all windows")
     axes[1, 0].set_ylabel("share of all windows")
-    axes[0, 0].legend(fontsize=8, loc="center left")
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=9, frameon=False)
     fig.suptitle("Synthetic ECG: wrong answers vs. fault severity (test subjects never seen in training)")
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(out_dir / "fault_sweep.png", dpi=130)
     plt.close(fig)
 
