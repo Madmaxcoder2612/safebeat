@@ -106,12 +106,44 @@ What this says, without softening it:
 
 **Sensitivity checks** (separate from the results above, and not tuned): they show what two knobs do, and I did not choose a setting from them and report it as the result.
 
-- **Stricter gate against movement.** With a smaller gate margin (0.5, stricter), movement errors fall to about 10% at both strengths, and clean-data answers drop only from 89% to 85%. That looks promising, but picking it from this table would be tuning on the test faults. The honest next step is to choose the margin on separate validation records.
+- **Stricter gate against movement.** With a smaller gate margin (0.5, stricter), movement errors fall to about 10% at both strengths, and clean-data answers drop only from 89% to 85%. Picking that from this table would be tuning on the test faults, so the next section repeats the idea properly: the margin is chosen on separate records and then tested on records it never saw.
 - **A pickier "can't tell" level (alpha).** Answering fewer windows lowers the error among answered windows (for example 57% answered with 8.1% error at alpha 0.02), but the trend is bumpy, because the AF calibration set is small. Do not read a smooth curve into it.
 
 ![Left: error among answered windows against share answered for several alpha values. Right: gate margin against wrong and answered shares for movement and noise](results/real_mitdb_sensitivity.png)
 
 *Figure 4. Source: [results/real_mitdb_sensitivity.csv](results/real_mitdb_sensitivity.csv). Contains information from the MIT-BIH Arrhythmia Database, which is made available under the ODC Attribution License; see [NOTICE](NOTICE).*
+
+### Gate margin chosen on separate records
+
+To fix the movement gap without tuning on the test, the gate margin is **chosen inside each rotation using only that rotation's calibration records**, then tested on the untouched test records:
+
+- Candidates: margins 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 and 3.0.
+- Validation faults: movement, noise, lost samples and lifted electrode at strengths 0.25 and 0.75, plus clean windows. The test strengths (0.5 and 1.0) are different, and drift and clipping are deliberately left out, so the test shows what a stricter gate does to fault types it was not chosen for.
+- Rule: lowest average class-balanced wrong rate, but only margins that still answer at least 80% of clean windows, so refusing everything cannot win.
+- Result: validation chose **margin 0.5 in all three rotations**. That is the strictest value in the grid, so the best margin may lie beyond it.
+
+Class-balanced results on the untouched test records (wrong = share of all windows answered wrongly; answered = share of windows SafeBeat answers):
+
+| Situation | Naive: wrong | Default gate: wrong / answered | Validated gate: wrong / answered |
+|---|---|---|---|
+| Clean | 14.8% | 10.9% / 89% | 10.1% / 85% |
+| Movement 0.5 | 23% | 18% / 91% | **9.6% / 47%** |
+| Movement 1.0 | 48% | 43% / 91% | **10.7% / 27%** |
+| Noise, lost samples, lifted electrode | 28 to 50% | 0% / 0% | 0% / 0% |
+| Baseline drift 1.0 | 14.8% | 11.0% / 90% | 10.2% / 86% |
+| Clipping 0.5 | 14% | 10.7% / 90% | 8.5% / 73% |
+| Clipping 1.0 | 19% | 8.9% / 66% | 3.6% / 20% |
+
+What this says, without softening it:
+
+- **It works as a safety measure.** Movement now ends in about 10% wrong answers at both strengths, down from 18% and 43%, and well below the naive model.
+- **It gets there by refusing much more**, not by finding the good windows. Under movement SafeBeat answers only 47% and 27% of windows, and among the windows it still answers, the error rate (23% and 50%) is no better than before.
+- **There is a cost on fault types it was not chosen for.** Clean answers fall from 89% to 85%, and clipping, which is harmless to this detector, is refused far more often (20% answered at strength 1.0).
+- **Still not zero.** About 10% of movement windows are answered wrongly. This is one small dataset with atrial fibrillation in 7 records.
+
+![Real ECG: default gate against the gate chosen on separate records, six fault types](results/real_mitdb_validated.png)
+
+*Figure 5. Class-balanced, untouched test records. Sources: [results/real_mitdb_validated.csv](results/real_mitdb_validated.csv) and [results/real_mitdb_margin_selection.csv](results/real_mitdb_margin_selection.csv). Contains information from the MIT-BIH Arrhythmia Database, which is made available under the ODC Attribution License; see [NOTICE](NOTICE).*
 
 ## The browser lab
 
@@ -250,7 +282,8 @@ The authors and PhysioNet do not endorse this project. The complete list, includ
 - **The real-data check is small.** Atrial fibrillation appears in only 7 records, there is one dataset, one lead and two rhythm classes, and the regular windows were subsampled. It is indicative, not conclusive.
 - **On clean real data the classifier is weak and the "can't tell" rule helps only a little** (10.9% wrong against 14.8%).
 - **The gate was designed while looking at the synthetic faults.** I added the beat-shape check after movement artefact fooled the first version, and made drift and clipping warnings after they proved harmless to this detector. The tables show the design works on these faults, not that it generalises to faults nobody tried.
-- **Movement artefact is the hardest fault.** It fools the default gate on real data. A stricter gate helps in the sensitivity check, but I have not chosen that setting on separate validation data. With a looser gate on synthetic data, heavy movement gives up to 18% wrong answers (Figure 2).
+- **Movement artefact is the hardest fault.** It fools the default gate on real data. A gate margin chosen on separate records cuts wrong answers to about 10%, but by refusing far more windows (27 to 47% answered), and the choice sat at the edge of the grid. About 10% of movement windows are still answered wrongly.
+- **The stricter gate has side effects.** Clean answers fall from 89% to 85%, and harmless clipping is refused more often.
 - **Strict by default.** The default gate refuses light noise and light movement that barely hurt the naive model. That is the safety-versus-availability trade-off, not a free win.
 - **The 90% promise holds for clean data only.** Conformal coverage assumes the new window looks like the calibration data. Damaged signals break that assumption, which is why the gate runs first.
 - **Assumes calibrated amplitude.** A real device would need its own gate limits.
@@ -260,7 +293,7 @@ The authors and PhysioNet do not endorse this project. The complete list, includ
 
 ## Next steps
 
-1. Choose the gate margin and the "can't tell" level on separate validation records, then re-test on untouched records, so a stricter movement check is not tuned on the test faults.
+1. Widen the margin grid below 0.5 (the validation choice hit its lower edge), and choose the "can't tell" level on validation records too.
 2. Add features that see more than beat timing (for example P-wave and beat-shape features) so the classifier itself is stronger on real data.
 3. Test faults the gate was not designed against, and report what it misses.
 4. Try more rhythm classes and a second open dataset.

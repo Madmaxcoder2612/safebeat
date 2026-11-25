@@ -95,7 +95,10 @@ class QualityGate:
     WARN_FLOORS = {"wander": 0.05, "clip_frac": 0.005}
 
     def fit(self, X_clean: np.ndarray, fs: int = FS) -> "QualityGate":
-        rows = [quality_metrics(x, fs) for x in X_clean]
+        return self.fit_metrics([quality_metrics(x, fs) for x in X_clean])
+
+    def fit_metrics(self, rows: list[dict[str, float]]) -> "QualityGate":
+        """Same as fit(), from quality metrics computed earlier (lets many margins share one pass)."""
         col = {k: np.array([r[k] for r in rows]) for k in rows[0]}
 
         def limit(k: str, floor: float) -> float:

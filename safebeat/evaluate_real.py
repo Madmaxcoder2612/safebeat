@@ -36,7 +36,7 @@ from .evaluate import precompute
 from .faults import FAULTS, apply_fault
 from .features import extract_features_batch
 from .model import RhythmModel
-from .quality import QualityGate
+from .quality import QualityGate, quality_metrics
 from .realdata import list_records, load_windows
 
 RESULTS = Path(__file__).resolve().parent.parent / "results"
@@ -46,6 +46,12 @@ CONDITIONS = [("none", 0.0)] + [(f, s) for f in FAULTS for s in (0.5, 1.0)]
 ALPHAS = (0.02, 0.05, 0.1, 0.2)
 MARGINS = (0.5, 1.0, 1.5, 3.0)
 MARGIN_CONDITIONS = {("none", 0.0), ("motion", 0.5), ("motion", 1.0), ("noise", 0.5)}
+# Gate-margin selection (see select_margin). Candidates, and the validation faults.
+# Validation uses DIFFERENT severities from the test (0.5, 1.0) and leaves out drift and
+# clipping, so the test shows whether the chosen gate hurts fault types it was not tuned on.
+MARGIN_GRID = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0)
+VAL_CONDITIONS = [("none", 0.0)] + [(f, s) for f in ("motion", "noise", "dropout", "electrode_off") for s in (0.25, 0.75)]
+MIN_CLEAN_ANSWERED = 0.80
 NOTICE = (
     "Contains information from the MIT-BIH Arrhythmia Database "
     "(physionet.org/content/mitdb/1.0.0/), which is made available under the "
@@ -98,8 +104,41 @@ def _summarise(p) -> dict[str, float]:
     return row
 
 
+def select_margin(model, gates, Xca, yca, feats_ca, rng):
+    """Pick the gate margin on calibration records only, never on test records.
+
+    For every candidate margin: build SafeBeat, damage the calibration windows with the
+    validation faults, and average the class-balanced wrong-answer rate over all of
+    them (clean included). A candidate is allowed only if it still answers at least
+    MIN_CLEAN_ANSWERED of clean windows (class-balanced), so refusing everything cannot
+    win. Lowest average wrong rate wins; ties go to the looser (larger) margin.
+    Returns (chosen margin, table of candidates).
+    """
+    pre = {}
+    for fault, sev in VAL_CONDITIONS:
+        Xf = Xca if fault == "none" else np.array([apply_fault(x, fault, sev, rng) for x in Xca])
+        pre[(fault, sev)] = precompute(Xf)
+    table = []
+    for m in sorted(gates):
+        s = SafeBeat(model, gates[m], alpha=0.1, class_conditional=True).calibrate(feats_ca, yca)
+        wrongs, clean_ans = [], 0.0
+        for cond, (metrics, feats) in pre.items():
+            dec = [s.decide_from(a, b) for a, b in zip(metrics, feats)]
+            ans = np.array([d.label is not None for d in dec])
+            lab = np.array([d.label if d.label is not None else -1 for d in dec])
+            wrongs.append(np.mean([np.mean(ans[yca == c] & (lab[yca == c] != c)) for c in (0, 1)]))
+            if cond == ("none", 0.0):
+                clean_ans = float(np.mean([np.mean(ans[yca == c]) for c in (0, 1)]))
+        table.append({"margin": m, "val_wrong_avg": float(np.mean(wrongs)), "val_clean_answered": clean_ans})
+    allowed = [t for t in table if t["val_clean_answered"] >= MIN_CLEAN_ANSWERED] or table
+    best = min(allowed, key=lambda t: (round(t["val_wrong_avg"], 6), -t["margin"]))
+    return best["margin"], table
+
+
 def run(seed: int = 5):
     rng = np.random.default_rng(seed)
+    rng_val = np.random.default_rng(seed + 99)  # separate stream: validation never touches the test draws
+    selections = []
     records = list_records()
     data = {r: load_windows(r) for r in records}
     folds = make_folds(records)
@@ -126,7 +165,11 @@ def run(seed: int = 5):
         assert not set(train_recs) & set(test_recs) and not set(cal_recs) & set(test_recs)
         model = RhythmModel(class_weight="balanced").fit(extract_features_batch(Xtr), ytr)
         feats_ca = extract_features_batch(Xca)
-        gates = {m: QualityGate(margin=m).fit(Xtr) for m in MARGINS}
+        rows_tr = [quality_metrics(x) for x in Xtr]
+        gates = {m: QualityGate(margin=m).fit_metrics(rows_tr) for m in MARGIN_GRID}
+        chosen, table = select_margin(model, gates, Xca, yca, feats_ca, rng_val)
+        selections += [{"fold": i, "chosen": chosen == t["margin"], **t} for t in table]
+        validated = SafeBeat(model, gates[chosen], alpha=0.1, class_conditional=True).calibrate(feats_ca, yca)
         main = SafeBeat(model, gates[1.5], alpha=0.1, class_conditional=True).calibrate(feats_ca, yca)
         alpha_v = {a: SafeBeat(model, gates[1.5], alpha=a, class_conditional=True).calibrate(feats_ca, yca) for a in ALPHAS}
         margin_v = {m: SafeBeat(model, gates[m], alpha=0.1, class_conditional=True).calibrate(feats_ca, yca) for m in MARGINS}
@@ -145,6 +188,7 @@ def run(seed: int = 5):
                 return [s.decide_from(m, f) for m, f in zip(metrics, feats)]
 
             add(("main", None, fault, sev), yte, naive, decide(main))
+            add(("validated", None, fault, sev), yte, naive, decide(validated))
             if cond == ("none", 0.0):
                 for a, s in alpha_v.items():
                     add(("alpha", a, fault, sev), yte, naive, decide(s))
@@ -154,7 +198,7 @@ def run(seed: int = 5):
     rows = []
     for (kind, param, fault, sev), p in sorted(pooled.items(), key=lambda kv: (kv[0][0], str(kv[0][1]), kv[0][2], kv[0][3])):
         rows.append({"kind": kind, "param": param if param is not None else "", "fault": fault, "severity": sev, **_summarise(p)})
-    return rows
+    return rows, selections
 
 
 def _write_csv(path: Path, rows) -> None:
@@ -166,12 +210,17 @@ def _write_csv(path: Path, rows) -> None:
             w.writerow({k: (round(v, 4) if isinstance(v, float) else v) for k, v in r.items()})
 
 
-def save(rows, out_dir: Path = RESULTS) -> None:
+def save(rows, selections=None, out_dir: Path = RESULTS) -> None:
     out_dir.mkdir(exist_ok=True)
     main = [r for r in rows if r["kind"] == "main"]
-    sens = [r for r in rows if r["kind"] != "main"]
+    validated = [r for r in rows if r["kind"] == "validated"]
+    sens = [r for r in rows if r["kind"] in ("alpha", "margin")]
     _write_csv(out_dir / "real_mitdb_results.csv", main)
     _write_csv(out_dir / "real_mitdb_sensitivity.csv", sens)
+    if validated:
+        _write_csv(out_dir / "real_mitdb_validated.csv", validated)
+    if selections:
+        _write_csv(out_dir / "real_mitdb_margin_selection.csv", selections)
     import matplotlib
 
     matplotlib.use("Agg")
@@ -225,12 +274,41 @@ def save(rows, out_dir: Path = RESULTS) -> None:
     fig.savefig(out_dir / "real_mitdb_sensitivity.png", dpi=130)
     plt.close(fig)
 
+    if validated:
+        vclean = next(r for r in validated if r["fault"] == "none")
+        fig, axes = plt.subplots(2, 3, figsize=(11, 6.6), sharey=True)
+        for ax, fault in zip(axes.ravel(), FAULTS):
+            d = [clean] + [r for r in main if r["fault"] == fault]
+            v = [vclean] + [r for r in validated if r["fault"] == fault]
+            s = [0.0] + [r["severity"] for r in d[1:]]
+            ax.plot(s, [r["naive_wrong_balanced"] for r in d], "o-", color="#c0392b", label="naive: wrong")
+            ax.plot(s, [r["safebeat_wrong_balanced"] for r in d], "o-", color="#2c7a4b", label="SafeBeat default gate: wrong")
+            ax.plot(s, [r["safebeat_wrong_balanced"] for r in v], "o-", color="#1f5f8b", label="SafeBeat validated gate: wrong")
+            ax.plot(s, [r["safebeat_answered_balanced"] for r in d], "--", color="#2c7a4b", alpha=0.6, label="default gate: answered")
+            ax.plot(s, [r["safebeat_answered_balanced"] for r in v], "--", color="#1f5f8b", alpha=0.6, label="validated gate: answered")
+            ax.set_title(fault)
+            ax.set_xlabel("fault severity")
+            ax.set_xticks([0.0, 0.5, 1.0])
+            ax.set_ylim(0, 1.02)
+            ax.grid(alpha=0.3)
+        axes[0, 0].set_ylabel("class-balanced share of windows")
+        axes[1, 0].set_ylabel("class-balanced share of windows")
+        axes[0, 0].legend(fontsize=7, loc="center left")
+        fig.suptitle("Real ECG (MIT-BIH): gate margin chosen on separate records, tested on untouched records")
+        fig.text(0.5, 0.012, NOTICE, ha="center", fontsize=6.5)
+        fig.tight_layout(rect=(0, 0.04, 1, 1))
+        fig.savefig(out_dir / "real_mitdb_validated.png", dpi=130)
+        plt.close(fig)
+
 
 if __name__ == "__main__":
-    out = run()
-    save(out)
+    out, sel = run()
+    save(out, sel)
+    for fold in sorted({s["fold"] for s in sel}):
+        picked = next(s for s in sel if s["fold"] == fold and s["chosen"])
+        print(f"fold {fold}: validation chose margin {picked['margin']} (avg wrong {picked['val_wrong_avg']:.3f}, clean answered {picked['val_clean_answered']:.3f})")
     cols = ["kind", "param", "fault", "severity", "naive_wrong_balanced", "safebeat_answered_balanced", "safebeat_wrong_balanced", "safebeat_error_among_answered_balanced"]
     print(" ".join(f"{c[:15]:>15s}" for c in cols))
-    for r in out:
+    for r in [x for x in out if x["kind"] in ("main", "validated")]:
         print(" ".join(f"{r[c]:15.3f}" if isinstance(r[c], float) else f"{str(r[c]):>15s}" for c in cols))
     print(f"windows: regular {out[0]['n_regular']}, AF {out[0]['n_af']}")

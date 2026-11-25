@@ -1,0 +1,16 @@
+# Contains information from the MIT-BIH Arrhythmia Database (physionet.org/content/mitdb/1.0.0/), which is made available under the ODC Attribution License (opendatacommons.org/licenses/by/1-0/).
+# Parse with pandas.read_csv(path, comment='#').
+kind,param,fault,severity,n_regular,n_af,naive_wrong_regular,safebeat_answered_regular,safebeat_wrong_regular,safebeat_error_among_answered_regular,naive_wrong_af,safebeat_answered_af,safebeat_wrong_af,safebeat_error_among_answered_af,naive_wrong_balanced,safebeat_wrong_balanced,safebeat_answered_balanced,safebeat_error_among_answered_balanced
+validated,,clipping,0.5,2353,703,0.1449,0.657,0.0999,0.152,0.1408,0.7923,0.0711,0.0898,0.1429,0.0855,0.7247,0.1209
+validated,,clipping,1.0,2353,703,0.235,0.2002,0.0527,0.2633,0.1451,0.2077,0.0199,0.0959,0.1901,0.0363,0.2039,0.1796
+validated,,dropout,0.5,2353,703,0.4739,0.0,0.0,nan,0.091,0.0,0.0,nan,0.2825,0.0,0.0,nan
+validated,,dropout,1.0,2353,703,0.5793,0.0,0.0,nan,0.1593,0.0,0.0,nan,0.3693,0.0,0.0,nan
+validated,,electrode_off,0.5,2353,703,0.6337,0.0,0.0,nan,0.1095,0.0,0.0,nan,0.3716,0.0,0.0,nan
+validated,,electrode_off,1.0,2353,703,0.1113,0.0,0.0,nan,0.7681,0.0,0.0,nan,0.4397,0.0,0.0,nan
+validated,,motion,0.5,2353,703,0.3604,0.3952,0.1632,0.4129,0.0896,0.5477,0.0284,0.0519,0.225,0.0958,0.4714,0.2324
+validated,,motion,1.0,2353,703,0.8687,0.2104,0.2031,0.9657,0.091,0.3186,0.01,0.0312,0.4799,0.1066,0.2645,0.4985
+validated,,noise,0.5,2353,703,0.6825,0.0,0.0,nan,0.0356,0.0,0.0,nan,0.359,0.0,0.0,nan
+validated,,noise,1.0,2353,703,0.9694,0.0,0.0,nan,0.0213,0.0,0.0,nan,0.4954,0.0,0.0,nan
+validated,,none,0.0,2353,703,0.133,0.8432,0.1079,0.128,0.1636,0.8549,0.0939,0.1098,0.1483,0.1009,0.849,0.1189
+validated,,wander,0.5,2353,703,0.133,0.8585,0.1096,0.1277,0.1636,0.8535,0.0925,0.1083,0.1483,0.1011,0.856,0.118
+validated,,wander,1.0,2353,703,0.133,0.8598,0.1105,0.1285,0.1636,0.8549,0.0939,0.1098,0.1483,0.1022,0.8573,0.1192

@@ -1,0 +1,24 @@
+# Contains information from the MIT-BIH Arrhythmia Database (physionet.org/content/mitdb/1.0.0/), which is made available under the ODC Attribution License (opendatacommons.org/licenses/by/1-0/).
+# Parse with pandas.read_csv(path, comment='#').
+fold,chosen,margin,val_wrong_avg,val_clean_answered
+0,True,0.5,0.0035,0.8667
+0,False,0.75,0.0072,0.8834
+0,False,1.0,0.0192,0.8917
+0,False,1.25,0.0306,0.8988
+0,False,1.5,0.0357,0.8988
+0,False,2.0,0.036,0.906
+0,False,3.0,0.0372,0.906
+1,True,0.5,0.0135,0.9526
+1,False,0.75,0.0188,0.9568
+1,False,1.0,0.0354,0.9568
+1,False,1.25,0.0507,0.9591
+1,False,1.5,0.0548,0.9591
+1,False,2.0,0.0551,0.9591
+1,False,3.0,0.0556,0.9643
+2,True,0.5,0.0599,0.8485
+2,False,0.75,0.0663,0.9094
+2,False,1.0,0.0672,0.9153
+2,False,1.25,0.0676,0.9162
+2,False,1.5,0.068,0.9172
+2,False,2.0,0.0684,0.9202
+2,False,3.0,0.074,0.9231
